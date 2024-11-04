@@ -3,11 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Page 1</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Load/Unload</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>Load/Unload</h1>
-    <a href="index.html" class="button">Back to Home</a>
+    <body class="top-center-page"></body>
+        <div class="container">
+            <h1>Load/Unload</h1>
+            <div class="input-container">
+                <label for="offload">Input Transfer List:</label>
+                <input id="offload" type="text" placeholder="Offload">
+                <input id="load" type="text" placeholder="Load">
+            </div>
+            <div class="button-container">
+                <button class="button" onclick="saveData()">Enter</button>
+            </div>
+        </div>
+
+    <a href="manifest.html" class="manifest-button">Manifest</a>
+</body>
+</html>
+
+    <script>
+        window.onload = function() {
+            sessionStorage.clear();
+        };
+    
+        function saveData() {
+            const offload = document.getElementById("offload").value;
+            const load = document.getElementById("load").value;
+    
+            sessionStorage.setItem("offloadData", offload);
+            sessionStorage.setItem("loadData", load);
+    
+            alert("Data saved for this session!");
+        }
+    
+        function loadData() {
+            const offload = sessionStorage.getItem("offloadData");
+            const load = sessionStorage.getItem("loadData");
+    
+            if (offload) document.getElementById("offload").value = offload;
+            if (load) document.getElementById("load").value = load;
+        }
+    
+        loadData(); 
+    </script>    
 </body>
 </html>
