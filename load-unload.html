@@ -7,47 +7,162 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <body class="top-center-page"></body>
-        <div class="container">
-            <h1>Load/Unload</h1>
-            <div class="input-container">
-                <label for="offload">Input Transfer List:</label>
-                <input id="offload" type="text" placeholder="Offload">
-                <input id="load" type="text" placeholder="Load">
-            </div>
-            <div class="button-container">
-                <button class="button" onclick="saveData()">Enter</button>
-            </div>
+    <div class="container">
+        <h1>Load/Unload</h1>
+        <div class="input-container">
+            <label for="offload">Container to Offload:</label>
+            <input id="offload" type="text" placeholder="e.g., Cat">
         </div>
-
-    <a href="manifest.html" class="manifest-button">Manifest</a>
-</body>
-</html>
+        <div class="input-container">
+            <label for="load">Container to Load:</label>
+            <input id="load" type="text" placeholder="e.g., NewContainer">
+        </div>
+        <div class="button-container">
+            <button class="button" onclick="handleTransfers()">Execute</button>
+        </div>
+        <div id="result" style="margin-top: 20px;"></div>
+    </div>
 
     <script>
-        window.onload = function() {
-            sessionStorage.clear();
-        };
-    
-        function saveData() {
-            const offload = document.getElementById("offload").value;
-            const load = document.getElementById("load").value;
-    
-            sessionStorage.setItem("offloadData", offload);
-            sessionStorage.setItem("loadData", load);
-    
-            alert("Data saved for this session!");
+        function parseManifestToGrid(text) {
+            const lines = text.trim().split("\n");
+            const grid = Array.from({ length: 8 }, () =>
+                Array.from({ length: 12 }, () => ({ id: "00000", weight: 0, name: "UNUSED" }))
+            );
+
+            lines.forEach(line => {
+                const [coordinates, weight, name] = line.split(", ").map(item => item.trim());
+                const [row, col] = coordinates.replace("[", "").replace("]", "").split(",").map(Number);
+                grid[row - 1][col - 1] = {
+                    id: weight.replace("{", "").replace("}", ""),
+                    weight: parseFloat(weight.replace("{", "").replace("}", "")) || 0,
+                    name: name,
+                };
+            });
+
+            return grid;
         }
-    
-        function loadData() {
-            const offload = sessionStorage.getItem("offloadData");
-            const load = sessionStorage.getItem("loadData");
-    
-            if (offload) document.getElementById("offload").value = offload;
-            if (load) document.getElementById("load").value = load;
+
+        function findContainer(grid, containerName) {
+            for (let r = 0; r < grid.length; r++) {
+                for (let c = 0; c < grid[0].length; c++) {
+                    if (grid[r][c].name === containerName) {
+                        return [r, c];
+                    }
+                }
+            }
+            return [-1, -1];
         }
-    
-        loadData(); 
-    </script>    
+
+        function findClosestEmptySlot(grid) {
+            for (let r = 0; r < grid.length; r++) {
+                for (let c = 0; c < grid[0].length; c++) {
+                    if (grid[r][c].name === "UNUSED") {
+                        return [r, c];
+                    }
+                }
+            }
+            return [-1, -1];
+        }
+
+        function updateGrid(grid, path, action, containerId = "00000", name = "UNUSED") {
+            if (path.length > 0) {
+                const [startX, startY] = path[0];
+
+                if (action === "offload") {
+                    grid[startX][startY] = { id: "00000", weight: 0, name: "UNUSED" }; // Clear original position
+                } else if (action === "load") {
+                    const [endX, endY] = path[path.length - 1];
+                    grid[endX][endY] = { id: containerId, weight: Math.random() * 100, name }; // Place in new position
+                }
+            }
+        }
+
+        function displayUpdatedManifest(grid) {
+            const resultDiv = document.getElementById("result");
+            const formattedManifest = grid.map((row, rowIndex) =>
+                row.map((cell, colIndex) => {
+                    const coordinates = `[${rowIndex + 1},${colIndex + 1}]`;
+                    return `${coordinates}: ${cell.name} (${cell.id})`;
+                }).join("\n")
+            ).join("\n\n");
+
+            resultDiv.innerHTML = `
+                <h3>Updated Manifest:</h3>
+                <pre>${formattedManifest}</pre>
+            `;
+        }
+
+        async function handleOffload(grid, containerName) {
+            const position = findContainer(grid, containerName);
+            if (position[0] === -1) {
+                alert(`Container "${containerName}" not found.`);
+                return;
+            }
+
+            console.log(`Offloading ${containerName} from ${position} to external zone [1,13]`);
+
+            // Only clear the original position, as the offload zone [1,13] is external
+            grid[position[0]][position[1]] = { id: "00000", weight: 0, name: "UNUSED" };
+
+            console.log("Grid After Offload:", grid); // Debugging log
+        }
+
+        function findFirstAvailableSlot(grid) {
+    for (let r = 0; r < grid.length; r++) {
+        for (let c = 0; c < grid[0].length; c++) {
+            if (grid[r][c].name === "UNUSED") {
+                return [r, c];
+            }
+        }
+    }
+    return [-1, -1]; // No available slot found
+}
+
+async function handleLoad(grid, containerName) {
+    // Find the first available "UNUSED" slot
+    const availableSlot = findFirstAvailableSlot(grid);
+
+    if (availableSlot[0] === -1) {
+        alert("No empty slot available for loading.");
+        return;
+    }
+
+    const [targetRow, targetCol] = availableSlot;
+
+    // Add the new container to the available position
+    grid[targetRow][targetCol] = {
+        id: Math.floor(Math.random() * 100000).toString().padStart(5, "0"), // Generate random container ID
+        weight: Math.random() * 100, // Assign a random weight
+        name: containerName, // Use the input name
+    };
+
+    console.log(`Loaded "${containerName}" into position [${targetRow + 1},${targetCol + 1}].`);
+}
+
+
+
+        async function handleTransfers() {
+            const offload = document.getElementById("offload").value.trim();
+            const load = document.getElementById("load").value.trim();
+
+            const response = await fetch("data/ShipCase.txt");
+            const manifestText = await response.text();
+            const grid = parseManifestToGrid(manifestText);
+
+            if (offload) {
+                await handleOffload(grid, offload);
+            }
+
+            if (load) {
+                await handleLoad(grid, load);
+            }
+
+            displayUpdatedManifest(grid);
+        }
+    </script>
 </body>
 </html>
+
+
+
