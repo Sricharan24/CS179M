@@ -14,7 +14,56 @@
             <a href="load-unload.html" class="button">Load/Unload</a>
             <a href="balance.html" class="button">Balance</a>
         </div>
+
+        <!-- Manifest Display Section -->
+        <div id="manifestDisplay" style="display: none;">
+            <h2>Manifest Content:</h2>
+            <pre id="manifestContent"></pre>
+        </div>
     </div>
+
+    <script>
+        // Function to load and process the manifest file
+        async function loadManifestFromFile() {
+            try {
+                const response = await fetch('data/ShipCase.txt');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const fileContent = await response.text();
+                
+                // Split the content into lines and parse each line
+                const lines = fileContent.trim().split("\n");
+                const manifestData = lines.map(line => {
+                    const [coordinates, weight, name] = line.split(", ").map(item => item.trim());
+                    return { coordinates, weight, name };
+                });
+
+                displayManifest(manifestData);
+            } catch (error) {
+                console.error("Error loading the manifest file:", error);
+            }
+        }
+
+        // Function to display the manifest data
+        // function displayManifest(manifestData) {
+        //     const manifestContent = document.getElementById("manifestContent");
+        //     const manifestDisplay = document.getElementById("manifestDisplay");
+
+        //     manifestContent.innerHTML = ""; // Clear previous content
+
+        //     manifestData.forEach(entry => {
+        //         manifestContent.innerHTML += `Coordinates: ${entry.coordinates}, Weight: ${entry.weight}, name: ${entry.name}\n`;
+        //     });
+
+        //     // Show the manifest display section
+        //     manifestDisplay.style.display = "block";
+        // }
+
+        // Automatically load and display the manifest when the page loads
+        document.addEventListener("DOMContentLoaded", loadManifestFromFile);
+    </script>
 </body>
 </html>
+
 
