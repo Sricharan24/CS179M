@@ -101,3 +101,34 @@ h1 {
 .manifest-button:hover {
     background-color: #519caf;
 }
+
+.centered-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh; /* Full height of the viewport */
+    text-align: center;
+}
+
+.centered-container h1 {
+    font-size: 2rem;
+    margin-bottom: 20px;
+    font-weight: bold;
+    color: #333;
+}
+
+.centered-container button {
+    padding: 10px 20px;
+    background-color: #519caf;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    font-size: 1rem;
+    transition: background-color 0.3s;
+    cursor: pointer;
+}
+
+.centered-container button:hover {
+    background-color: #417a85;
+}

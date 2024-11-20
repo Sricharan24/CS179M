@@ -3,15 +3,160 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Balance</title>
+    <title>Balance Ship Manifest</title>
     <link rel="stylesheet" href="style.css">
+    <script>
+        class PriorityQueue {
+            constructor() {
+                this.elements = [];
+            }
+
+            enqueue(priority, item) {
+                this.elements.push({ priority, item });
+                this.elements.sort((a, b) => a.priority - b.priority);
+            }
+
+            dequeue() {
+                return this.elements.shift().item;
+            }
+
+            isEmpty() {
+                return this.elements.length === 0;
+            }
+        }
+
+        async function parseManifestFile(filePath) {
+            const response = await fetch(filePath);
+            const text = await response.text();
+            const rows = text.split("\n").filter(line => line.trim() !== "");
+            const grid = Array(8).fill(null).map(() => Array(12).fill(null));
+
+            rows.forEach(row => {
+                const match = row.match(/\[(\d+),(\d+)\],\s?\{(\d+)\},\s?(\w+)/);
+                if (match) {
+                    const [_, x, y, weight, status] = match;
+                    const rowIdx = parseInt(x, 10) - 1;
+                    const colIdx = parseInt(y, 10) - 1;
+                    grid[rowIdx][colIdx] = { weight: parseInt(weight, 10), status };
+                }
+            });
+
+            return grid;
+        }
+
+        function generateManifest(grid) {
+            let manifest = "";
+            grid.forEach((row, rowIdx) => {
+                row.forEach((cell, colIdx) => {
+                    if (cell) {
+                        manifest += `[${rowIdx + 1},${colIdx + 1}], {${cell.weight}}, ${cell.status}\n`;
+                    } else {
+                        manifest += `[${rowIdx + 1},${colIdx + 1}], {00000}, UNUSED\n`;
+                    }
+                });
+            });
+            return manifest;
+        }
+
+        function downloadManifest(grid) {
+            const manifestContent = generateManifest(grid);
+            const blob = new Blob([manifestContent], { type: "text/plain" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "UpdatedManifest.txt";
+            link.click();
+        }
+
+        function calculateWeight(grid, startCol, endCol) {
+            let weight = 0;
+            for (let row = 0; row < grid.length; row++) {
+                for (let col = startCol; col < endCol; col++) {
+                    if (grid[row][col] && grid[row][col].status === "USED") {
+                        weight += grid[row][col].weight;
+                    }
+                }
+            }
+            return weight;
+        }
+
+        function isBalanced(leftWeight, rightWeight) {
+            const totalWeight = leftWeight + rightWeight;
+            const imbalance = Math.abs(leftWeight - rightWeight) / totalWeight;
+            return imbalance <= 0.1;
+        }
+
+        function aStarBalancing(grid) {
+            const cols = grid[0].length;
+            const leftCols = Math.floor(cols / 2);
+
+            let leftWeight = calculateWeight(grid, 0, leftCols);
+            let rightWeight = calculateWeight(grid, leftCols, cols);
+
+            const startState = { grid, leftWeight, rightWeight, moves: [] };
+            const pq = new PriorityQueue();
+            pq.enqueue(Math.abs(leftWeight - rightWeight), startState);
+
+            const visited = new Set();
+
+            while (!pq.isEmpty()) {
+                const currentState = pq.dequeue();
+                const { grid: currentGrid, leftWeight, rightWeight, moves } = currentState;
+
+                if (isBalanced(leftWeight, rightWeight)) {
+                    return { grid: currentGrid, moves };
+                }
+
+                const stateKey = JSON.stringify(currentGrid);
+                if (visited.has(stateKey)) continue;
+                visited.add(stateKey);
+
+                for (let row = 0; row < grid.length; row++) {
+                    for (let col = 0; col < grid[0].length; col++) {
+                        if (currentGrid[row][col] && currentGrid[row][col].status === "USED") {
+                            for (let targetCol = 0; targetCol < grid[0].length; targetCol++) {
+                                if (!currentGrid[row][targetCol] || currentGrid[row][targetCol].status === "UNUSED") {
+                                    const newGrid = currentGrid.map(r => r.map(c => (c ? { ...c } : null)));
+                                    newGrid[row][targetCol] = { ...newGrid[row][col] };
+                                    newGrid[row][col] = null;
+
+                                    const newLeftWeight = calculateWeight(newGrid, 0, leftCols);
+                                    const newRightWeight = calculateWeight(newGrid, leftCols, cols);
+
+                                    const newMoves = [...moves, { from: [row, col], to: [row, targetCol] }];
+                                    pq.enqueue(
+                                        Math.abs(newLeftWeight - newRightWeight) + newMoves.length,
+                                        { grid: newGrid, leftWeight: newLeftWeight, rightWeight: newRightWeight, moves: newMoves }
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        async function balanceManifest() {
+            const manifestPath = "./data/ShipCase.txt";
+            const grid = await parseManifestFile(manifestPath);
+
+            const result = aStarBalancing(grid);
+            if (result) {
+                console.log("Balanced Grid:", result.grid);
+                console.log("Moves:", result.moves);
+                alert(`Balancing completed in ${result.moves.length} moves.`);
+                downloadManifest(result.grid);
+            } else {
+                alert("No solution found to balance the manifest.");
+            }
+        }
+    </script>
 </head>
 <body>
-    <body class="top-center-page"></body>
-        <div class="container">
-            <h1>Balance</h1>
-        </div>
-
-    <a href="manifest.html" class="manifest-button">Manifest</a>
+    <div class="centered-container">
+        <h1>Balance</h1>
+        <button onclick="balanceManifest()">Run Balancing</button>
+    </div>
 </body>
 </html>
