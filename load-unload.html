@@ -24,6 +24,9 @@
     </div>
 
     <script>
+        let grid = null; // Global grid variable
+
+        // Parse the manifest into a grid representation
         function parseManifestToGrid(text) {
             const lines = text.trim().split("\n");
             const grid = Array.from({ length: 8 }, () =>
@@ -43,6 +46,7 @@
             return grid;
         }
 
+        // Find the position of a container by name
         function findContainer(grid, containerName) {
             for (let r = 0; r < grid.length; r++) {
                 for (let c = 0; c < grid[0].length; c++) {
@@ -54,30 +58,54 @@
             return [-1, -1];
         }
 
-        function findClosestEmptySlot(grid) {
-            for (let r = 0; r < grid.length; r++) {
-                for (let c = 0; c < grid[0].length; c++) {
-                    if (grid[r][c].name === "UNUSED") {
-                        return [r, c];
+        // Check if a position is within grid bounds
+        function isWithinBounds(row, col, grid) {
+            return row >= 0 && row < grid.length && col >= 0 && col < grid[0].length;
+        }
+
+        // A* search algorithm to find the closest unused slot
+        function aStarFindSlot(grid, start) {
+            const directions = [
+                [0, 1],  // right
+                [0, -1], // left
+                [1, 0],  // down
+                [-1, 0], // up
+            ];
+
+            const openSet = [{ position: start, cost: 0 }]; // Priority queue
+            const visited = new Set();
+
+            while (openSet.length > 0) {
+                // Sort by cost (lowest first) and take the first node
+                openSet.sort((a, b) => a.cost - b.cost);
+                const current = openSet.shift();
+                const [currentRow, currentCol] = current.position;
+
+                // If this slot is unused, return it
+                if (grid[currentRow][currentCol].name === "UNUSED") {
+                    return [currentRow, currentCol];
+                }
+
+                const currentKey = `${currentRow},${currentCol}`;
+                if (visited.has(currentKey)) continue;
+                visited.add(currentKey);
+
+                // Explore neighbors
+                for (const [dr, dc] of directions) {
+                    const neighborRow = currentRow + dr;
+                    const neighborCol = currentCol + dc;
+
+                    if (isWithinBounds(neighborRow, neighborCol, grid) && !visited.has(`${neighborRow},${neighborCol}`)) {
+                        const newCost = current.cost + 1; // Increment cost for each step
+                        openSet.push({ position: [neighborRow, neighborCol], cost: newCost });
                     }
                 }
             }
-            return [-1, -1];
+
+            return [-1, -1]; // No slot found
         }
 
-        function updateGrid(grid, path, action, containerId = "00000", name = "UNUSED") {
-            if (path.length > 0) {
-                const [startX, startY] = path[0];
-
-                if (action === "offload") {
-                    grid[startX][startY] = { id: "00000", weight: 0, name: "UNUSED" }; // Clear original position
-                } else if (action === "load") {
-                    const [endX, endY] = path[path.length - 1];
-                    grid[endX][endY] = { id: containerId, weight: Math.random() * 100, name }; // Place in new position
-                }
-            }
-        }
-
+        // Display the updated manifest in the UI
         function displayUpdatedManifest(grid) {
             const resultDiv = document.getElementById("result");
             const formattedManifest = grid.map((row, rowIndex) =>
@@ -91,8 +119,11 @@
                 <h3>Updated Manifest:</h3>
                 <pre>${formattedManifest}</pre>
             `;
+
+            localStorage.setItem("currentGrid", JSON.stringify(grid)); // Save the updated grid
         }
 
+        // Handle offloading of a container
         async function handleOffload(grid, containerName) {
             const position = findContainer(grid, containerName);
             if (position[0] === -1) {
@@ -100,55 +131,40 @@
                 return;
             }
 
-            console.log(`Offloading ${containerName} from ${position} to external zone [1,13]`);
-
-            // Only clear the original position, as the offload zone [1,13] is external
+            console.log(`Offloading ${containerName} from ${position}`);
             grid[position[0]][position[1]] = { id: "00000", weight: 0, name: "UNUSED" };
-
-            console.log("Grid After Offload:", grid); // Debugging log
         }
 
-        function findFirstAvailableSlot(grid) {
-    for (let r = 0; r < grid.length; r++) {
-        for (let c = 0; c < grid[0].length; c++) {
-            if (grid[r][c].name === "UNUSED") {
-                return [r, c];
+        // Handle loading of a container
+        async function handleLoad(grid, containerName) {
+            const startPosition = [0, 0]; // Starting position (top-left corner)
+            const availableSlot = aStarFindSlot(grid, startPosition);
+
+            if (availableSlot[0] === -1) {
+                alert("No empty slot available for loading.");
+                return;
             }
+
+            const [targetRow, targetCol] = availableSlot;
+
+            grid[targetRow][targetCol] = {
+                id: Math.floor(Math.random() * 100000).toString().padStart(5, "0"),
+                weight: Math.random() * 100,
+                name: containerName,
+            };
+
+            console.log(`Loaded "${containerName}" into position [${targetRow + 1},${targetCol + 1}].`);
         }
-    }
-    return [-1, -1]; // No available slot found
-}
 
-async function handleLoad(grid, containerName) {
-    // Find the first available "UNUSED" slot
-    const availableSlot = findFirstAvailableSlot(grid);
-
-    if (availableSlot[0] === -1) {
-        alert("No empty slot available for loading.");
-        return;
-    }
-
-    const [targetRow, targetCol] = availableSlot;
-
-    // Add the new container to the available position
-    grid[targetRow][targetCol] = {
-        id: Math.floor(Math.random() * 100000).toString().padStart(5, "0"), // Generate random container ID
-        weight: Math.random() * 100, // Assign a random weight
-        name: containerName, // Use the input name
-    };
-
-    console.log(`Loaded "${containerName}" into position [${targetRow + 1},${targetCol + 1}].`);
-}
-
-
-
+        // Handle load and offload operations
         async function handleTransfers() {
             const offload = document.getElementById("offload").value.trim();
             const load = document.getElementById("load").value.trim();
 
-            const response = await fetch("data/ShipCase.txt");
-            const manifestText = await response.text();
-            const grid = parseManifestToGrid(manifestText);
+            if (!grid) {
+                const savedGrid = localStorage.getItem("currentGrid");
+                grid = savedGrid ? JSON.parse(savedGrid) : grid;
+            }
 
             if (offload) {
                 await handleOffload(grid, offload);
@@ -160,9 +176,14 @@ async function handleLoad(grid, containerName) {
 
             displayUpdatedManifest(grid);
         }
+
+        // Load the manifest on page load (original manifest on refresh)
+        window.addEventListener("load", async () => {
+            const response = await fetch("data/ShipCase.txt");
+            const manifestText = await response.text();
+            grid = parseManifestToGrid(manifestText);
+            displayUpdatedManifest(grid); // Display original manifest
+        });
     </script>
 </body>
 </html>
-
-
-
