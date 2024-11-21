@@ -137,6 +137,8 @@
             return null;
         }
 
+        let balancedGrid = null; // Global variable to store the balanced grid
+
         async function balanceManifest() {
             const manifestPath = "./data/ShipCase.txt"; // Update path if necessary
             const grid = await parseManifestFile(manifestPath);
@@ -145,10 +147,22 @@
             if (result) {
                 console.log("Balanced Grid:", result.grid);
                 console.log("Moves:", result.moves);
+                balancedGrid = result.grid; // Store the balanced grid globally
                 alert(`Balancing completed in ${result.moves.length} moves.`);
-                downloadManifest(result.grid);
+
+                // Show the "Download Manifest" button
+                const downloadButton = document.getElementById("downloadButton");
+                downloadButton.style.display = "inline-block";
             } else {
                 alert("No solution found to balance the manifest.");
+            }
+        }
+
+        function triggerManifestDownload() {
+            if (balancedGrid) {
+                downloadManifest(balancedGrid);
+            } else {
+                alert("No balanced manifest available. Please run the balancing process first.");
             }
         }
     </script>
@@ -157,6 +171,7 @@
     <div class="centered-container">
         <h1>Balance</h1>
         <button onclick="balanceManifest()">Run Balancing</button>
+        <button id="downloadButton" onclick="triggerManifestDownload()" class="manifest-button" style="display: none;">Manifest</button>
     </div>
 </body>
 </html>

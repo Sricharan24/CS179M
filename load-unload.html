@@ -21,6 +21,7 @@
             <button class="button" onclick="handleTransfers()">Execute</button>
         </div>
         <div id="result" style="margin-top: 20px;"></div>
+        <button id="downloadButton" onclick="triggerManifestDownload()" class="manifest-button">Manifest</button>
     </div>
 
     <script>
@@ -45,6 +46,111 @@
 
             return grid;
         }
+
+        // Generate the manifest in the desired format
+        function generateManifest(grid) {
+            return grid
+                .map((row, rowIndex) =>
+                    row
+                        .map(
+                            (cell, colIndex) =>
+                                `[${rowIndex + 1},${colIndex + 1}], {${cell.weight}}, ${cell.name}`
+                        )
+                        .join("\n")
+                )
+                .join("\n");
+        }
+
+        // Display the updated manifest in the UI
+        function displayUpdatedManifest(grid) {
+            const resultDiv = document.getElementById("result");
+            const formattedManifest = generateManifest(grid);
+
+            resultDiv.innerHTML = `
+                <h3>Updated Manifest:</h3>
+                <pre>${formattedManifest}</pre>
+            `;
+
+            localStorage.setItem("currentGrid", JSON.stringify(grid)); // Save the updated grid
+
+            // Show the download button after any updates
+            document.getElementById("downloadButton").style.display = "block";
+        }
+
+        // Handle offloading of a container
+        async function handleOffload(grid, containerName) {
+            const position = findContainer(grid, containerName);
+            if (position[0] === -1) {
+                alert(`Container "${containerName}" not found.`);
+                return;
+            }
+
+            console.log(`Offloading ${containerName} from ${position}`);
+            grid[position[0]][position[1]] = { id: "00000", weight: 0, name: "UNUSED" };
+        }
+
+        // Handle loading of a container
+        async function handleLoad(grid, containerName) {
+            const startPosition = [0, 0]; // Starting position (top-left corner)
+            const availableSlot = aStarFindSlot(grid, startPosition);
+
+            if (availableSlot[0] === -1) {
+                alert("No empty slot available for loading.");
+                return;
+            }
+
+            const [targetRow, targetCol] = availableSlot;
+
+            grid[targetRow][targetCol] = {
+                id: Math.floor(Math.random() * 100000).toString().padStart(5, "0"),
+                weight: Math.random() * 100,
+                name: containerName,
+            };
+
+            console.log(`Loaded "${containerName}" into position [${targetRow + 1},${targetCol + 1}].`);
+        }
+
+        // Handle load and offload operations
+        async function handleTransfers() {
+            const offload = document.getElementById("offload").value.trim();
+            const load = document.getElementById("load").value.trim();
+
+            if (!grid) {
+                const savedGrid = localStorage.getItem("currentGrid");
+                grid = savedGrid ? JSON.parse(savedGrid) : grid;
+            }
+
+            if (offload) {
+                await handleOffload(grid, offload);
+            }
+
+            if (load) {
+                await handleLoad(grid, load);
+            }
+
+            displayUpdatedManifest(grid);
+        }
+
+        // Download the updated manifest
+        function triggerManifestDownload() {
+            const manifestContent = generateManifest(grid);
+            const baseName = localStorage.getItem("manifestName")?.split('.')[0] || "DefaultManifest";
+            const downloadName = `${baseName}_OUTBOUND.txt`;
+
+            const blob = new Blob([manifestContent], { type: "text/plain" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = downloadName;
+            link.click();
+        }
+
+        // Load the manifest on page load (original manifest on refresh)
+        window.addEventListener("load", async () => {
+            const response = await fetch("data/ShipCase.txt");
+            const manifestText = await response.text();
+            grid = parseManifestToGrid(manifestText);
+            displayUpdatedManifest(grid); // Display original manifest
+        });
 
         // Find the position of a container by name
         function findContainer(grid, containerName) {
@@ -104,86 +210,6 @@
 
             return [-1, -1]; // No slot found
         }
-
-        // Display the updated manifest in the UI
-        function displayUpdatedManifest(grid) {
-            const resultDiv = document.getElementById("result");
-            const formattedManifest = grid.map((row, rowIndex) =>
-                row.map((cell, colIndex) => {
-                    const coordinates = `[${rowIndex + 1},${colIndex + 1}]`;
-                    return `${coordinates}: ${cell.name} (${cell.id})`;
-                }).join("\n")
-            ).join("\n\n");
-
-            resultDiv.innerHTML = `
-                <h3>Updated Manifest:</h3>
-                <pre>${formattedManifest}</pre>
-            `;
-
-            localStorage.setItem("currentGrid", JSON.stringify(grid)); // Save the updated grid
-        }
-
-        // Handle offloading of a container
-        async function handleOffload(grid, containerName) {
-            const position = findContainer(grid, containerName);
-            if (position[0] === -1) {
-                alert(`Container "${containerName}" not found.`);
-                return;
-            }
-
-            console.log(`Offloading ${containerName} from ${position}`);
-            grid[position[0]][position[1]] = { id: "00000", weight: 0, name: "UNUSED" };
-        }
-
-        // Handle loading of a container
-        async function handleLoad(grid, containerName) {
-            const startPosition = [0, 0]; // Starting position (top-left corner)
-            const availableSlot = aStarFindSlot(grid, startPosition);
-
-            if (availableSlot[0] === -1) {
-                alert("No empty slot available for loading.");
-                return;
-            }
-
-            const [targetRow, targetCol] = availableSlot;
-
-            grid[targetRow][targetCol] = {
-                id: Math.floor(Math.random() * 100000).toString().padStart(5, "0"),
-                weight: Math.random() * 100,
-                name: containerName,
-            };
-
-            console.log(`Loaded "${containerName}" into position [${targetRow + 1},${targetCol + 1}].`);
-        }
-
-        // Handle load and offload operations
-        async function handleTransfers() {
-            const offload = document.getElementById("offload").value.trim();
-            const load = document.getElementById("load").value.trim();
-
-            if (!grid) {
-                const savedGrid = localStorage.getItem("currentGrid");
-                grid = savedGrid ? JSON.parse(savedGrid) : grid;
-            }
-
-            if (offload) {
-                await handleOffload(grid, offload);
-            }
-
-            if (load) {
-                await handleLoad(grid, load);
-            }
-
-            displayUpdatedManifest(grid);
-        }
-
-        // Load the manifest on page load (original manifest on refresh)
-        window.addEventListener("load", async () => {
-            const response = await fetch("data/ShipCase.txt");
-            const manifestText = await response.text();
-            grid = parseManifestToGrid(manifestText);
-            displayUpdatedManifest(grid); // Display original manifest
-        });
     </script>
 </body>
 </html>
