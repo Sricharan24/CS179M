@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Balance Ship Manifest</title>
+    <title>Balance</title>
     <link rel="stylesheet" href="style.css">
     <script>
         class PriorityQueue {
@@ -137,16 +137,30 @@
             return null;
         }
 
-        let balancedGrid = null; // Global variable to store the balanced grid
+        function displayMove(from, to) {
+            const movesList = document.getElementById("movesList");
+            const moveItem = document.createElement("li");
+            moveItem.textContent = `Move box from (${from[0]}, ${from[1]}) to (${to[0]}, ${to[1]})`;
+            movesList.appendChild(moveItem);
+        }
 
         async function balanceManifest() {
             const manifestPath = "./data/ShipCase.txt"; // Update path if necessary
             const grid = await parseManifestFile(manifestPath);
 
             const result = aStarBalancing(grid);
+
+            const movesList = document.getElementById("movesList");
+            movesList.innerHTML = ""; // Clear any existing moves
+
             if (result) {
-                console.log("Balanced Grid:", result.grid);
-                console.log("Moves:", result.moves);
+                result.moves.forEach((move, index) => {
+                    // Display each move with a delay for interactivity
+                    setTimeout(() => {
+                        displayMove(move.from, move.to);
+                    }, index * 500); // Adjust delay (500ms per move) as needed
+                });
+
                 balancedGrid = result.grid; // Store the balanced grid globally
                 alert(`Balancing completed in ${result.moves.length} moves.`);
 
@@ -171,7 +185,11 @@
     <div class="centered-container">
         <h1>Balance</h1>
         <button onclick="balanceManifest()">Run Balancing</button>
-        <button id="downloadButton" onclick="triggerManifestDownload()" class="manifest-button" style="display: none;">Manifest</button>
+        <button id="downloadButton" onclick="triggerManifestDownload()" class="manifest-button" style="display: none;">Download Manifest</button>
+        <div id="movesContainer">
+            <h2>Moves:</h2>
+            <ol id="movesList"></ol>
+        </div>
     </div>
 </body>
 </html>
