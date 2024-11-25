@@ -91,24 +91,24 @@
 
         // Handle loading of a container
         async function handleLoad(grid, containerName) {
-            const startPosition = [0, 0]; // Starting position (top-left corner)
-            const availableSlot = aStarFindSlot(grid, startPosition);
+    const startPosition = [0, 0]; // Starting position (top-left corner)
+    const availableSlot = aStarFindSlot(grid, startPosition);
 
-            if (availableSlot[0] === -1) {
-                alert("No empty slot available for loading.");
-                return;
-            }
+    if (availableSlot[0] === -1) {
+        alert("No empty slot available for loading.");
+        return;
+    }
 
-            const [targetRow, targetCol] = availableSlot;
+    const [targetRow, targetCol] = availableSlot;
 
-            grid[targetRow][targetCol] = {
-                id: Math.floor(Math.random() * 100000).toString().padStart(5, "0"),
-                weight: Math.random() * 100,
-                name: containerName,
-            };
+    grid[targetRow][targetCol] = {
+        id: Math.floor(Math.random() * 100000).toString().padStart(5, "0"),
+        weight: Math.floor(Math.random() * 151) + 50, // Whole number ≤ 200
+        name: containerName,
+    };
 
-            console.log(`Loaded "${containerName}" into position [${targetRow + 1},${targetCol + 1}].`);
-        }
+    console.log(`Loaded "${containerName}" into position [${targetRow + 1},${targetCol + 1}].`);
+}
 
         // Handle load and offload operations
         async function handleTransfers() {
