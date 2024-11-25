@@ -171,45 +171,71 @@
 
         // A* search algorithm to find the closest unused slot
         function aStarFindSlot(grid, start) {
-            const directions = [
-                [0, 1],  // right
-                [0, -1], // left
-                [1, 0],  // down
-                [-1, 0], // up
-            ];
+    const directions = [
+        [0, 1],  // right
+        [0, -1], // left
+        [1, 0],  // down
+        [-1, 0], // up
+    ];
 
-            const openSet = [{ position: start, cost: 0 }]; // Priority queue
-            const visited = new Set();
+    const openSet = [{ position: start, cost: 0 }]; // Priority queue
+    const visited = new Set();
 
-            while (openSet.length > 0) {
-                // Sort by cost (lowest first) and take the first node
-                openSet.sort((a, b) => a.cost - b.cost);
-                const current = openSet.shift();
-                const [currentRow, currentCol] = current.position;
+    while (openSet.length > 0) {
+        // Sort by cost, prioritize lower rows and smaller columns
+        openSet.sort((a, b) => {
+            const [rowA, colA] = a.position;
+            const [rowB, colB] = b.position;
 
-                // If this slot is unused, return it
-                if (grid[currentRow][currentCol].name === "UNUSED") {
-                    return [currentRow, currentCol];
-                }
+            // Prioritize by row first, then by column
+            if (rowA !== rowB) return rowA - rowB;
+            return colA - colB;
+        });
 
-                const currentKey = `${currentRow},${currentCol}`;
-                if (visited.has(currentKey)) continue;
-                visited.add(currentKey);
+        const current = openSet.shift();
+        const [currentRow, currentCol] = current.position;
 
-                // Explore neighbors
-                for (const [dr, dc] of directions) {
-                    const neighborRow = currentRow + dr;
-                    const neighborCol = currentCol + dc;
+        const currentKey = `${currentRow},${currentCol}`;
+        if (visited.has(currentKey)) continue;
+        visited.add(currentKey);
 
-                    if (isWithinBounds(neighborRow, neighborCol, grid) && !visited.has(`${neighborRow},${neighborCol}`)) {
-                        const newCost = current.cost + 1; // Increment cost for each step
-                        openSet.push({ position: [neighborRow, neighborCol], cost: newCost });
-                    }
-                }
-            }
-
-            return [-1, -1]; // No slot found
+        // Check if the position is a valid slot
+        if (isValidLoadingSlot(grid, currentRow, currentCol)) {
+            return [currentRow, currentCol];
         }
+
+        // Explore neighbors
+        for (const [dr, dc] of directions) {
+            const neighborRow = currentRow + dr;
+            const neighborCol = currentCol + dc;
+
+            if (
+                isWithinBounds(neighborRow, neighborCol, grid) &&
+                !visited.has(`${neighborRow},${neighborCol}`)
+            ) {
+                const newCost =
+                    current.cost + Math.abs(dr) + Math.abs(dc); // Manhattan distance
+                openSet.push({ position: [neighborRow, neighborCol], cost: newCost });
+            }
+        }
+    }
+
+    return [-1, -1]; // No valid slot found
+}
+
+// Check if a position is a valid loading slot
+function isValidLoadingSlot(grid, row, col) {
+    // If the cell is already occupied, it's not valid
+    if (grid[row][col].name !== "UNUSED") return false;
+
+    // If it's the bottommost row, it's valid
+    if (row === 0) return true;
+
+    // Otherwise, it's valid only if there is a container directly below
+    return grid[row - 1][col].name !== "UNUSED";
+} 
+
+
     </script>
 </body>
 </html>
