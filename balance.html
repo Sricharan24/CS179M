@@ -25,6 +25,18 @@
             }
         }
 
+        let balancedGrid = null; 
+
+        function appendToLog(event) {
+            const now = new Date();
+            const timestamp = now.toISOString().slice(0, 19).replace("T", " ");
+            const existingLog = localStorage.getItem("logFileContent") || "";
+            const updatedLog = `${existingLog}${timestamp} - ${event}\n`;
+
+            localStorage.setItem("logFileContent", updatedLog);
+            console.log(`${timestamp} - ${event}`); 
+        }
+
         async function parseManifestFile(filePath) {
             const response = await fetch(filePath);
             const text = await response.text();
@@ -141,30 +153,29 @@
             const movesList = document.getElementById("movesList");
             const moveItem = document.createElement("li");
             moveItem.textContent = `Move box from (${from[0]}, ${from[1]}) to (${to[0]}, ${to[1]})`;
+            movesList.innerHTML = ""; 
             movesList.appendChild(moveItem);
         }
 
         async function balanceManifest() {
-            const manifestPath = "./data/ShipCase.txt"; // Update path if necessary
+            const manifestPath = "./data/ShipCase.txt";
             const grid = await parseManifestFile(manifestPath);
 
             const result = aStarBalancing(grid);
 
             const movesList = document.getElementById("movesList");
-            movesList.innerHTML = ""; // Clear any existing moves
+            movesList.innerHTML = ""; 
 
             if (result) {
-                result.moves.forEach((move, index) => {
-                    // Display each move with a delay for interactivity
-                    setTimeout(() => {
-                        displayMove(move.from, move.to);
-                    }, index * 500); // Adjust delay (500ms per move) as needed
-                });
+                const finalMove = result.moves[result.moves.length - 1];
+                if (finalMove) {
+                    appendToLog(`Moved box from [${finalMove.from[0]}, ${finalMove.from[1]}] to [${finalMove.to[0]}, ${finalMove.to[1]}]`);
+                    displayMove(finalMove.from, finalMove.to);
+                }
 
-                balancedGrid = result.grid; // Store the balanced grid globally
+                balancedGrid = result.grid;
                 alert(`Balancing completed in ${result.moves.length} moves.`);
 
-                // Show the "Download Manifest" button
                 const downloadButton = document.getElementById("downloadButton");
                 downloadButton.style.display = "inline-block";
             } else {
