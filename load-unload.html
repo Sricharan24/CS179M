@@ -164,53 +164,67 @@
         }
 
         function aStarFindSlot(grid, start) {
-            const directions = [
-                [0, 1],  // right
-                [0, -1], // left
-                [1, 0],  // down
-                [-1, 0], // up
-            ];
+    const directions = [
+        [1, 0],  // Down
+        [0, 1],  // Right
+        [-1, 0], // Up
+        [0, -1], // Left
+    ];
 
-            const openSet = [{ position: start, cost: 0 }];
-            const visited = new Set();
+    const priorityQueue = [{ position: start, cost: 0, heuristic: 0 }];
+    const visited = new Set();
 
-            while (openSet.length > 0) {
-                openSet.sort((a, b) => a.cost - b.cost);
-                const current = openSet.shift();
-                const [currentRow, currentCol] = current.position;
+    while (priorityQueue.length > 0) {
+        // Sort by cost + heuristic (A* priority)
+        priorityQueue.sort((a, b) => (a.cost + a.heuristic) - (b.cost + b.heuristic));
+        const current = priorityQueue.shift();
+        const [currentRow, currentCol] = current.position;
 
-                const currentKey = `${currentRow},${currentCol}`;
-                if (visited.has(currentKey)) continue;
-                visited.add(currentKey);
+        const currentKey = `${currentRow},${currentCol}`;
+        if (visited.has(currentKey)) continue;
+        visited.add(currentKey);
 
-                if (isValidLoadingSlot(grid, currentRow, currentCol)) {
-                    return [currentRow, currentCol];
-                }
+        // If a valid slot is found, return it
+        if (isValidLoadingSlot(grid, currentRow, currentCol)) {
+            return [currentRow, currentCol];
+        }
 
-                for (const [dr, dc] of directions) {
-                    const neighborRow = currentRow + dr;
-                    const neighborCol = currentCol + dc;
+        // Add neighbors to the queue
+        for (const [dr, dc] of directions) {
+            const neighborRow = currentRow + dr;
+            const neighborCol = currentCol + dc;
 
-                    if (
-                        isWithinBounds(neighborRow, neighborCol, grid) &&
-                        !visited.has(`${neighborRow},${neighborCol}`)
-                    ) {
-                        openSet.push({
-                            position: [neighborRow, neighborCol],
-                            cost: current.cost + 1,
-                        });
-                    }
-                }
+            if (isWithinBounds(neighborRow, neighborCol, grid) && !visited.has(`${neighborRow},${neighborCol}`)) {
+                const heuristic = calculateHeuristic(neighborRow, neighborCol, grid);
+                priorityQueue.push({
+                    position: [neighborRow, neighborCol],
+                    cost: current.cost + 1,
+                    heuristic: heuristic,
+                });
             }
-
-            return [-1, -1];
         }
+    }
 
-        function isValidLoadingSlot(grid, row, col) {
-            if (grid[row][col].name !== "UNUSED") return false;
-            if (row === 0) return true;
-            return grid[row - 1][col].name !== "UNUSED";
-        }
+    return [-1, -1]; // No valid slot found
+}
+
+function calculateHeuristic(row, col, grid) {
+    // Prioritize column-first, then row order
+    return col * 100 + row; // Columns have higher priority
+}
+
+function isValidLoadingSlot(grid, row, col) {
+    // Slot must be UNUSED and support weight if above row is filled
+    if (grid[row][col].name !== "UNUSED") return false;
+    if (row === 0) return true; // First row is always valid
+    return grid[row - 1][col].name !== "UNUSED"; // Ensure the slot below is filled
+}
+
+function isWithinBounds(row, col, grid) {
+    return row >= 0 && row < grid.length && col >= 0 && col < grid[0].length;
+}
+
+
     </script>
 </body>
 </html>
