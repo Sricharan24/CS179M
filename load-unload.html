@@ -7,22 +7,77 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <h1>Load/Unload</h1>
-        <div class="input-container">
-            <label for="offload">Container to Offload:</label>
-            <input id="offload" type="text" placeholder="e.g., Cat">
+    <style>
+        .grid-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start; /* Align the grid to the top */
+        }
+    
+        .container {
+            flex: 1;
+        }
+    
+        .animation-grid {
+            display: grid;
+            grid-template-rows: repeat(8, 40px);
+            grid-template-columns: repeat(12, 40px);
+            gap: 5px;
+            margin-left: 20px;
+            margin-top: 0; /* Move the grid to the top */
+        }
+    
+        .grid-cell {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            border: 1px solid #ccc;
+            text-align: center;
+            background-color: #f4f4f4;
+            transition: background-color 0.5s;
+        }
+    
+        .grid-cell.unused {
+            background-color: #e0e0e0;
+        }
+    
+        .grid-cell.filled {
+            background-color: #add8e6;
+        }
+    
+        .grid-cell.active {
+            background-color: #ffcccb;
+        }
+    </style>
+    
+    
+    <div class="grid-container">
+        <!-- Left Section: Form and Buttons -->
+        <div class="container">
+            <h1>Load/Unload</h1>
+            <div class="input-container">
+                <label for="offload">Container to Offload:</label>
+                <input id="offload" type="text" placeholder="e.g., Cat">
+            </div>
+            <div class="input-container">
+                <label for="load">Container to Load:</label>
+                <input id="load" type="text" placeholder="e.g., NewContainer">
+            </div>
+            <div class="button-container">
+                <button class="button" onclick="handleTransfers()">Execute</button>
+            </div>
+            <div id="result" style="margin-top: 20px;"></div>
+            <button id="downloadManifestButton" onclick="triggerManifestDownload()" class="manifest-button">Download Manifest</button>
         </div>
-        <div class="input-container">
-            <label for="load">Container to Load:</label>
-            <input id="load" type="text" placeholder="e.g., NewContainer">
-        </div>
-        <div class="button-container">
-            <button class="button" onclick="handleTransfers()">Execute</button>
-        </div>
-        <div id="result" style="margin-top: 20px;"></div>
-        <button id="downloadManifestButton" onclick="triggerManifestDownload()" class="manifest-button">Download Manifest</button>
+    
+        <!-- Right Section: Grid -->
+        <div id="animation-grid" class="animation-grid"></div>
     </div>
+    
+    
 
     <script>
         let grid = null;
@@ -70,45 +125,47 @@
         }
 
         function displayUpdatedManifest(grid) {
-            const resultDiv = document.getElementById("result");
-            const formattedManifest = generateManifest(grid);
+    const resultDiv = document.getElementById("result");
+    const formattedManifest = generateManifest(grid);
 
-            resultDiv.innerHTML = `
-                <h3>Updated Manifest:</h3>
-                <pre>${formattedManifest}</pre>
-            `;
+    resultDiv.innerHTML =
+        `<h3>Updated Manifest:</h3>
+        <pre>${formattedManifest}</pre>`;
 
-            localStorage.setItem("currentGrid", JSON.stringify(grid)); // Save the updated grid
-        }
+    initializeGridDisplay(grid);
+}
 
         async function handleOffload(grid, containerName) {
-            const position = findContainer(grid, containerName);
-            if (position[0] === -1) {
-                alert(`Container "${containerName}" not found.`);
-                return;
-            }
+    const position = findContainer(grid, containerName);
+    if (position[0] === -1) {
+        alert(`Container "${containerName}" not found.`);
+        return;
+    }
 
-            grid[position[0]][position[1]] = { weight: 0, name: "UNUSED" };
+    const [row, col] = position;
+    grid[row][col] = { weight: 0, name: "UNUSED" };
 
-            appendToLog(`Offloaded container "${containerName}" from position [${position[0] + 1}, ${position[1] + 1}]`);
-        }
+    updateGridCell(row, col, "UNUSED", "offload");
+    appendToLog(`Offloaded container "${containerName}" from position [${row + 1}, ${col + 1}]`);
+}
 
-        async function handleLoad(grid, containerName) {
-            const startPosition = [0, 0];
-            const availableSlot = aStarFindSlot(grid, startPosition);
+async function handleLoad(grid, containerName) {
+    const startPosition = [0, 0];
+    const availableSlot = aStarFindSlot(grid, startPosition);
 
-            if (availableSlot[0] === -1) {
-                alert("No empty slot available for loading.");
-                return;
-            }
+    if (availableSlot[0] === -1) {
+        alert("No empty slot available for loading.");
+        return;
+    }
 
-            const [targetRow, targetCol] = availableSlot;
-            const weight = Math.floor(Math.random() * 151) + 50;
+    const [targetRow, targetCol] = availableSlot;
+    const weight = Math.floor(Math.random() * 151) + 50;
 
-            grid[targetRow][targetCol] = { weight, name: containerName };
+    grid[targetRow][targetCol] = { weight, name: containerName };
 
-            appendToLog(`Loaded container "${containerName}" (weight: ${weight}) into position [${targetRow + 1}, ${targetCol + 1}]`);
-        }
+    updateGridCell(targetRow, targetCol, containerName, "load");
+    appendToLog(`Loaded container "${containerName}" (weight: ${weight}) into position [${targetRow + 1}, ${targetCol + 1}]`);
+}
 
         async function handleTransfers() {
             const offload = document.getElementById("offload").value.trim();
@@ -143,11 +200,12 @@
         }
 
         window.addEventListener("load", async () => {
-            const response = await fetch(`data/${filename}`);
-            const manifestText = await response.text();
-            grid = parseManifestToGrid(manifestText);
-            displayUpdatedManifest(grid);
-        });
+    const response = await fetch(`data/${filename}`);
+    const manifestText = await response.text();
+    grid = parseManifestToGrid(manifestText);
+    displayUpdatedManifest(grid);
+    initializeGridDisplay(grid);
+});
 
         function findContainer(grid, containerName) {
             for (let r = 0; r < grid.length; r++) {
@@ -223,6 +281,41 @@ function isValidLoadingSlot(grid, row, col) {
 
 function isWithinBounds(row, col, grid) {
     return row >= 0 && row < grid.length && col >= 0 && col < grid[0].length;
+}
+
+function initializeGridDisplay(grid) {
+    const animationGrid = document.getElementById("animation-grid");
+    animationGrid.innerHTML = ""; // Clear existing grid
+
+    // Render rows in reverse order for display but keep correct coordinates
+    for (let rowIndex = grid.length - 1; rowIndex >= 0; rowIndex--) {
+        grid[rowIndex].forEach((cell, colIndex) => {
+            const gridCell = document.createElement("div");
+            gridCell.classList.add("grid-cell");
+            gridCell.classList.add(cell.name === "UNUSED" ? "unused" : "filled");
+            gridCell.id = `cell-${grid.length - rowIndex}-${colIndex + 1}`; // Adjust coordinates to start from [1,1]
+            gridCell.innerText = cell.name === "UNUSED" ? "" : cell.name;
+            animationGrid.appendChild(gridCell);
+        });
+    }
+}
+
+
+
+
+function updateGridCell(row, col, name, action) {
+    const cell = document.getElementById(`cell-${row}-${col}`);
+    if (!cell) return;
+
+    // Set animation and state
+    cell.classList.add("active");
+    cell.innerText = name === "UNUSED" ? "" : name;
+    cell.classList.remove("filled", "unused");
+    cell.classList.add(name === "UNUSED" ? "unused" : "filled");
+
+    setTimeout(() => {
+        cell.classList.remove("active");
+    }, 500);
 }
 
 
