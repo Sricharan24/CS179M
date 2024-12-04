@@ -25,7 +25,8 @@
     </div>
 
     <script>
-        let grid = null; 
+        let grid = null;
+        let filename = "ShipCase3";
 
         function appendToLog(event) {
             const now = new Date();
@@ -131,8 +132,8 @@
 
         function triggerManifestDownload() {
             const manifestContent = generateManifest(grid);
-            const baseName = localStorage.getItem("manifestName")?.split('.')[0] || "DefaultManifest";
-            const downloadName = `${baseName}_OUTBOUND.txt`;
+            //const baseName = localStorage.getItem("manifestName")?.split('.')[0] || filename;
+            const downloadName = `${filename}OUTBOUND.txt`;
 
             const blob = new Blob([manifestContent], { type: "text/plain" });
             const link = document.createElement("a");
@@ -142,7 +143,7 @@
         }
 
         window.addEventListener("load", async () => {
-            const response = await fetch("data/ShipCase.txt");
+            const response = await fetch(`data/${filename}`);
             const manifestText = await response.text();
             grid = parseManifestToGrid(manifestText);
             displayUpdatedManifest(grid);
