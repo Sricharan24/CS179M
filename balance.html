@@ -6,9 +6,6 @@
     <title>Balance</title>
     <link rel="stylesheet" href="style.css">
     <script>
-
-        let filename = "ShipCase";
-
         class PriorityQueue {
             constructor() {
                 this.elements = [];
@@ -49,9 +46,9 @@
             rows.forEach(row => {
                 const match = row.match(/\[(\d+),(\d+)\],\s?\{(\d+)\},\s?([\w\s]+)/);
                 if (match) {
-                    const [_, x, y, weight, status] = match;
-                    const rowIdx = parseInt(x, 10) - 1;
-                    const colIdx = parseInt(y, 10) - 1;
+                    const [_, y, x, weight, status] = match; // Swap x and y here
+                    const rowIdx = parseInt(y, 10) - 1; // y determines the row
+                    const colIdx = parseInt(x, 10) - 1; // x determines the column
                     grid[rowIdx][colIdx] = { weight: parseInt(weight, 10), status };
                 }
             });
@@ -127,21 +124,47 @@
 
                 for (let row = 0; row < grid.length; row++) {
                     for (let col = 0; col < grid[0].length; col++) {
-                        if (currentGrid[row][col] && currentGrid[row][col].status !== "UNUSED" && currentGrid[row][col].status !== "NAN") {
+                        if (
+                            currentGrid[row][col] &&
+                            currentGrid[row][col].status !== "UNUSED" &&
+                            currentGrid[row][col].status !== "NAN"
+                        ) {
                             for (let targetCol = 0; targetCol < grid[0].length; targetCol++) {
-                                if (!currentGrid[row][targetCol] || currentGrid[row][targetCol].status === "UNUSED") {
-                                    const newGrid = currentGrid.map(r => r.map(c => (c ? { ...c } : null)));
+                                if (
+                                    !currentGrid[row][targetCol] ||
+                                    currentGrid[row][targetCol].status === "UNUSED"
+                                ) {
+                                    // Calculate the movement cost
+                                    const moveCost = calculateMovementCost(currentGrid, row, col, row, targetCol);
+
+                                    // Clone the grid and make the move
+                                    const newGrid = currentGrid.map(r =>
+                                        r.map(c => (c ? { ...c } : null))
+                                    );
                                     newGrid[row][targetCol] = { ...newGrid[row][col] };
                                     newGrid[row][col] = null;
 
                                     const newLeftWeight = calculateWeight(newGrid, 0, leftCols);
                                     const newRightWeight = calculateWeight(newGrid, leftCols, cols);
 
-                                    const newMoves = [...moves, { from: [row + 1, col + 1], to: [row + 1, targetCol + 1] }];
-                                    pq.enqueue(
-                                        Math.abs(newLeftWeight - newRightWeight) + newMoves.length,
-                                        { grid: newGrid, leftWeight: newLeftWeight, rightWeight: newRightWeight, moves: newMoves }
-                                    );
+                                    const newMoves = [
+                                        ...moves,
+                                        {
+                                            from: [row + 1, col + 1],
+                                            to: [row + 1, targetCol + 1],
+                                        },
+                                    ];
+
+                                    // Update heuristic with movement cost
+                                    const priority =
+                                        Math.abs(newLeftWeight - newRightWeight) + moveCost;
+
+                                    pq.enqueue(priority, {
+                                        grid: newGrid,
+                                        leftWeight: newLeftWeight,
+                                        rightWeight: newRightWeight,
+                                        moves: newMoves,
+                                    });
                                 }
                             }
                         }
@@ -152,13 +175,29 @@
             return null;
         }
 
+        // Helper Function to Calculate Movement Cost
+        function calculateMovementCost(grid, startRow, startCol, targetRow, targetCol) {
+            let cost = Math.abs(targetRow - startRow) + Math.abs(targetCol - startCol);
+
+            // Add extra cost for moving over or around used boxes
+            for (let col = Math.min(startCol, targetCol); col <= Math.max(startCol, targetCol); col++) {
+                if (grid[startRow][col] && grid[startRow][col].status !== "UNUSED") {
+                    cost += 1; // Penalty for obstruction
+                }
+            }
+
+            return cost;
+        }
+
+
         function displayMove(from, to) {
             const movesList = document.getElementById("movesList");
             const moveItem = document.createElement("li");
-            moveItem.textContent = `Move box from (${from[0]}, ${from[1]}) to (${to[0]}, ${to[1]})`;
-            movesList.innerHTML = ""; 
+            moveItem.textContent = `Move box from (${from[0]}, ${from[1]}) to (${to[0]}, ${to[1]})`; // Use correct coordinate order
             movesList.appendChild(moveItem);
         }
+
+
 
         async function balanceManifest() {
             const manifestPath = "./data/ShipCase.txt";
@@ -187,21 +226,12 @@
         }
 
         function triggerManifestDownload() {
-    if (!balancedGrid) {
-        alert("Please run the balancing process first.");
-        return;
-    }
-
-    const manifestContent = generateManifest(balancedGrid); // Use balancedGrid for the updated manifest
-    const downloadName = `${filename}OUTBOUND.txt`;
-
-    const blob = new Blob([manifestContent], { type: "text/plain" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = downloadName;
-    link.click();
-}
-
+            if (balancedGrid) {
+                downloadManifest(balancedGrid);
+            } else {
+                alert("No balanced manifest available. Please run the balancing process first.");
+            }
+        }
     </script>
 </head>
 <body>
