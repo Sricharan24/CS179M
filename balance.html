@@ -6,6 +6,9 @@
     <title>Balance</title>
     <link rel="stylesheet" href="style.css">
     <script>
+
+        let filename = "ShipCase";
+
         class PriorityQueue {
             constructor() {
                 this.elements = [];
@@ -184,12 +187,21 @@
         }
 
         function triggerManifestDownload() {
-            if (balancedGrid) {
-                downloadManifest(balancedGrid);
-            } else {
-                alert("No balanced manifest available. Please run the balancing process first.");
-            }
-        }
+    if (!balancedGrid) {
+        alert("Please run the balancing process first.");
+        return;
+    }
+
+    const manifestContent = generateManifest(balancedGrid); // Use balancedGrid for the updated manifest
+    const downloadName = `${filename}OUTBOUND.txt`;
+
+    const blob = new Blob([manifestContent], { type: "text/plain" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = downloadName;
+    link.click();
+}
+
     </script>
 </head>
 <body>
