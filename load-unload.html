@@ -135,19 +135,66 @@
     initializeGridDisplay(grid);
 }
 
-        async function handleOffload(grid, containerName) {
+async function handleOffload(grid, containerName) {
     const position = findContainer(grid, containerName);
     if (position[0] === -1) {
         alert(`Container "${containerName}" not found.`);
         return;
     }
 
-    const [row, col] = position;
-    grid[row][col] = { weight: 0, name: "UNUSED" };
+    const [targetRow, targetCol] = position; // y, x format (row, column)
 
-    updateGridCell(row, col, "UNUSED", "offload");
-    appendToLog(`Offloaded container "${containerName}" from position [${row + 1}, ${col + 1}]`);
+    // Relocate all containers above the target container, one at a time
+    for (let row = grid.length - 1; row > targetRow; row--) {
+        if (grid[row][targetCol].name !== "UNUSED") {
+            // Exclude the current column
+            const tempSlot = aStarFindSlot(grid, [row, targetCol], targetCol);
+            if (tempSlot[0] === -1) {
+                alert("No temporary slot available to relocate containers.");
+                return;
+            }
+
+            const [tempRow, tempCol] = tempSlot;
+            const movedContainer = grid[row][targetCol];
+
+            // Move the container to the temporary slot
+            grid[tempRow][tempCol] = movedContainer;
+            grid[row][targetCol] = { weight: 0, name: "UNUSED" };
+
+            // Update grid display for this move
+            updateGridCell(tempRow + 1, tempCol + 1, movedContainer.name, "load");
+            updateGridCell(row + 1, targetCol + 1, "UNUSED", "offload");
+
+            appendToLog(
+                `Moved container "${movedContainer.name}" from [${row + 1}, ${targetCol + 1}] to [${tempRow + 1}, ${tempCol + 1}]`
+            );
+
+            // Wait briefly to simulate crane movement
+            await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+    }
+
+    // Offload the target container
+    grid[targetRow][targetCol] = { weight: 0, name: "UNUSED" };
+    updateGridCell(targetRow + 1, targetCol + 1, "UNUSED", "offload");
+
+    appendToLog(
+        `Offloaded container "${containerName}" from position [${targetRow + 1}, ${targetCol + 1}]`
+    );
+
+    // Update the manifest and display the updated grid
+    displayUpdatedManifest(grid);
 }
+
+
+
+
+
+
+
+
+
+
 
 async function handleLoad(grid, containerName) {
     const startPosition = [0, 0];
@@ -222,7 +269,7 @@ async function handleLoad(grid, containerName) {
             return row >= 0 && row < grid.length && col >= 0 && col < grid[0].length;
         }
 
-        function aStarFindSlot(grid, start) {
+        function aStarFindSlot(grid, start, excludeColumn = -1) {
     const directions = [
         [1, 0],  // Down
         [0, 1],  // Right
@@ -244,7 +291,7 @@ async function handleLoad(grid, containerName) {
         visited.add(currentKey);
 
         // If a valid slot is found, return it
-        if (isValidLoadingSlot(grid, currentRow, currentCol)) {
+        if (isValidLoadingSlot(grid, currentRow, currentCol) && currentCol !== excludeColumn) {
             return [currentRow, currentCol];
         }
 
@@ -253,7 +300,11 @@ async function handleLoad(grid, containerName) {
             const neighborRow = currentRow + dr;
             const neighborCol = currentCol + dc;
 
-            if (isWithinBounds(neighborRow, neighborCol, grid) && !visited.has(`${neighborRow},${neighborCol}`)) {
+            if (
+                isWithinBounds(neighborRow, neighborCol, grid) &&
+                !visited.has(`${neighborRow},${neighborCol}`) &&
+                neighborCol !== excludeColumn
+            ) {
                 const heuristic = calculateHeuristic(neighborRow, neighborCol, grid);
                 priorityQueue.push({
                     position: [neighborRow, neighborCol],
@@ -278,6 +329,7 @@ function isValidLoadingSlot(grid, row, col) {
     if (row === 0) return true; // First row is always valid
     return grid[row - 1][col].name !== "UNUSED"; // Ensure the slot below is filled
 }
+
 
 function isWithinBounds(row, col, grid) {
     return row >= 0 && row < grid.length && col >= 0 && col < grid[0].length;
