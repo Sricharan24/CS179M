@@ -5,28 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Load/Unload</title>
     <link rel="stylesheet" href="style.css">
-</head>
-<body>
     <style>
         .grid-container {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start; /* Align the grid to the top */
+            align-items: flex-start;
         }
-    
+
         .container {
             flex: 1;
         }
-    
+
         .animation-grid {
             display: grid;
             grid-template-rows: repeat(8, 40px);
             grid-template-columns: repeat(12, 40px);
             gap: 5px;
             margin-right: 800px;
-            margin-top: 550px; /* Move the grid to the top */
+            margin-top: 550px;
         }
-    
+
         .grid-cell {
             width: 40px;
             height: 40px;
@@ -39,23 +37,23 @@
             background-color: #f4f4f4;
             transition: background-color 0.5s;
         }
-    
+
         .grid-cell.unused {
             background-color: #e0e0e0;
         }
-    
+
         .grid-cell.filled {
             background-color: #add8e6;
         }
-    
+
         .grid-cell.active {
             background-color: #ffcccb;
         }
     </style>
-    
-    
+</head>
+<body>
     <div class="grid-container">
-        <!-- Left Section: Form and Buttons -->
+        <!-- Left Section: Form, Buttons, and Moves -->
         <div class="container">
             <h1>Load/Unload</h1>
             <div class="input-container">
@@ -69,29 +67,21 @@
             <div class="button-container">
                 <button class="button" onclick="handleTransfers()">Execute</button>
             </div>
-            <div id="result" style="margin-top: 20px;"></div>
             <button id="downloadManifestButton" onclick="triggerManifestDownload()" class="manifest-button">Download Manifest</button>
+
+            <div id="movesContainer" style="margin-top: 20px;">
+                <h2>Moves:</h2>
+                <ol id="movesList"></ol>
+            </div>
         </div>
-    
+
         <!-- Right Section: Grid -->
         <div id="animation-grid" class="animation-grid"></div>
     </div>
-    
-    
 
     <script>
         let grid = null;
         let filename = "ShipCase";
-
-        function appendToLog(event) {
-            const now = new Date();
-            const timestamp = now.toISOString().slice(0, 19).replace("T", " ");
-            const existingLog = localStorage.getItem("logFileContent") || "";
-            const updatedLog = `${existingLog}${timestamp} - ${event}\n`;
-
-            localStorage.setItem("logFileContent", updatedLog);
-            console.log(`${timestamp} - ${event}`);
-        }
 
         function parseManifestToGrid(text) {
             const lines = text.trim().split("\n");
@@ -125,96 +115,80 @@
         }
 
         function displayUpdatedManifest(grid) {
-    const resultDiv = document.getElementById("result");
-    const formattedManifest = generateManifest(grid);
+            const resultDiv = document.getElementById("result");
+            initializeGridDisplay(grid);
+        }
 
-    //resultDiv.innerHTML =
-        // `<h3>Updated Manifest:</h3>
-        // <pre>${formattedManifest}</pre>`;
+        function displayMove(from, to, action) {
+            const movesList = document.getElementById("movesList");
+            const moveItem = document.createElement("li");
+            if (action === "offload") {
+                moveItem.textContent = `Offloaded container from (${from[0] + 1}, ${from[1] + 1})`;
+            } else if (action === "load") {
+                moveItem.textContent = `Loaded container to (${to[0] + 1}, ${to[1] + 1})`;
+            } else {
+                moveItem.textContent = `Moved container from (${from[0] + 1}, ${from[1] + 1}) to (${to[0] + 1}, ${to[1] + 1})`;
+            }
+            movesList.appendChild(moveItem);
+        }
 
-    initializeGridDisplay(grid);
-}
-
-async function handleOffload(grid, containerName) {
-    const position = findContainer(grid, containerName);
-    if (position[0] === -1) {
-        alert(`Container "${containerName}" not found.`);
-        return;
-    }
-
-    const [targetRow, targetCol] = position; // y, x format (row, column)
-
-    // Relocate all containers above the target container, one at a time
-    for (let row = grid.length - 1; row > targetRow; row--) {
-        if (grid[row][targetCol].name !== "UNUSED") {
-            // Exclude the current column
-            const tempSlot = aStarFindSlot(grid, [row, targetCol], targetCol);
-            if (tempSlot[0] === -1) {
-                alert("No temporary slot available to relocate containers.");
+        async function handleOffload(grid, containerName) {
+            const position = findContainer(grid, containerName);
+            if (position[0] === -1) {
+                alert(`Container "${containerName}" not found.`);
                 return;
             }
 
-            const [tempRow, tempCol] = tempSlot;
-            const movedContainer = grid[row][targetCol];
+            const [targetRow, targetCol] = position;
 
-            // Move the container to the temporary slot
-            grid[tempRow][tempCol] = movedContainer;
-            grid[row][targetCol] = { weight: 0, name: "UNUSED" };
+            for (let row = grid.length - 1; row > targetRow; row--) {
+                if (grid[row][targetCol].name !== "UNUSED") {
+                    const tempSlot = aStarFindSlot(grid, [row, targetCol], targetCol);
+                    if (tempSlot[0] === -1) {
+                        alert("No temporary slot available to relocate containers.");
+                        return;
+                    }
 
-            // Update grid display for this move
-            updateGridCell(tempRow + 1, tempCol + 1, movedContainer.name, "load");
-            updateGridCell(row + 1, targetCol + 1, "UNUSED", "offload");
+                    const [tempRow, tempCol] = tempSlot;
+                    const movedContainer = grid[row][targetCol];
 
-            appendToLog(
-                `Moved container "${movedContainer.name}" from [${row + 1}, ${targetCol + 1}] to [${tempRow + 1}, ${tempCol + 1}]`
-            );
+                    grid[tempRow][tempCol] = movedContainer;
+                    grid[row][targetCol] = { weight: 0, name: "UNUSED" };
 
-            // Wait briefly to simulate crane movement
-            await new Promise((resolve) => setTimeout(resolve, 500));
+                    updateGridCell(tempRow + 1, tempCol + 1, movedContainer.name, "load");
+                    updateGridCell(row + 1, targetCol + 1, "UNUSED", "offload");
+
+                    displayMove([row, targetCol], [tempRow, tempCol], "move");
+                    await new Promise((resolve) => setTimeout(resolve, 500));
+                }
+            }
+
+            grid[targetRow][targetCol] = { weight: 0, name: "UNUSED" };
+            updateGridCell(targetRow + 1, targetCol + 1, "UNUSED", "offload");
+            displayMove([targetRow, targetCol], null, "offload");
+            displayUpdatedManifest(grid);
         }
-    }
 
-    // Offload the target container
-    grid[targetRow][targetCol] = { weight: 0, name: "UNUSED" };
-    updateGridCell(targetRow + 1, targetCol + 1, "UNUSED", "offload");
+        async function handleLoad(grid, containerName) {
+            const startPosition = [0, 0];
+            const availableSlot = aStarFindSlot(grid, startPosition);
 
-    appendToLog(
-        `Offloaded container "${containerName}" from position [${targetRow + 1}, ${targetCol + 1}]`
-    );
+            if (availableSlot[0] === -1) {
+                alert("No empty slot available for loading.");
+                return;
+            }
 
-    // Update the manifest and display the updated grid
-    displayUpdatedManifest(grid);
-}
+            const [targetRow, targetCol] = availableSlot;
+            const weight = Math.floor(Math.random() * 151) + 50;
 
+            grid[targetRow][targetCol] = { weight, name: containerName };
 
-
-
-
-
-
-
-
-
-
-async function handleLoad(grid, containerName) {
-    const startPosition = [0, 0];
-    const availableSlot = aStarFindSlot(grid, startPosition);
-
-    if (availableSlot[0] === -1) {
-        alert("No empty slot available for loading.");
-        return;
-    }
-
-    const [targetRow, targetCol] = availableSlot;
-    const weight = Math.floor(Math.random() * 151) + 50;
-
-    grid[targetRow][targetCol] = { weight, name: containerName };
-
-    updateGridCell(targetRow, targetCol, containerName, "load");
-    appendToLog(`Loaded container "${containerName}" (weight: ${weight}) into position [${targetRow + 1}, ${targetCol + 1}]`);
-}
+            updateGridCell(targetRow + 1, targetCol + 1, containerName, "load");
+            displayMove(null, [targetRow, targetCol], "load");
+        }
 
         async function handleTransfers() {
+            document.getElementById("movesList").innerHTML = "";
             const offload = document.getElementById("offload").value.trim();
             const load = document.getElementById("load").value.trim();
 
@@ -236,7 +210,6 @@ async function handleLoad(grid, containerName) {
 
         function triggerManifestDownload() {
             const manifestContent = generateManifest(grid);
-            //const baseName = localStorage.getItem("manifestName")?.split('.')[0] || filename;
             const downloadName = `${filename}OUTBOUND.txt`;
 
             const blob = new Blob([manifestContent], { type: "text/plain" });
@@ -245,14 +218,6 @@ async function handleLoad(grid, containerName) {
             link.download = downloadName;
             link.click();
         }
-
-        window.addEventListener("load", async () => {
-    const response = await fetch(`data/${filename}`);
-    const manifestText = await response.text();
-    grid = parseManifestToGrid(manifestText);
-    displayUpdatedManifest(grid);
-    initializeGridDisplay(grid);
-});
 
         function findContainer(grid, containerName) {
             for (let r = 0; r < grid.length; r++) {
@@ -270,107 +235,91 @@ async function handleLoad(grid, containerName) {
         }
 
         function aStarFindSlot(grid, start, excludeColumn = -1) {
-    const directions = [
-        [1, 0],  // Down
-        [0, 1],  // Right
-        [-1, 0], // Up
-        [0, -1], // Left
-    ];
+            const directions = [
+                [1, 0],  [0, 1],  [-1, 0],  [0, -1]
+            ];
 
-    const priorityQueue = [{ position: start, cost: 0, heuristic: 0 }];
-    const visited = new Set();
+            const priorityQueue = [{ position: start, cost: 0, heuristic: 0 }];
+            const visited = new Set();
 
-    while (priorityQueue.length > 0) {
-        // Sort by cost + heuristic (A* priority)
-        priorityQueue.sort((a, b) => (a.cost + a.heuristic) - (b.cost + b.heuristic));
-        const current = priorityQueue.shift();
-        const [currentRow, currentCol] = current.position;
+            while (priorityQueue.length > 0) {
+                priorityQueue.sort((a, b) => (a.cost + a.heuristic) - (b.cost + b.heuristic));
+                const current = priorityQueue.shift();
+                const [currentRow, currentCol] = current.position;
 
-        const currentKey = `${currentRow},${currentCol}`;
-        if (visited.has(currentKey)) continue;
-        visited.add(currentKey);
+                const currentKey = `${currentRow},${currentCol}`;
+                if (visited.has(currentKey)) continue;
+                visited.add(currentKey);
 
-        // If a valid slot is found, return it
-        if (isValidLoadingSlot(grid, currentRow, currentCol) && currentCol !== excludeColumn) {
-            return [currentRow, currentCol];
+                if (isValidLoadingSlot(grid, currentRow, currentCol) && currentCol !== excludeColumn) {
+                    return [currentRow, currentCol];
+                }
+
+                for (const [dr, dc] of directions) {
+                    const neighborRow = currentRow + dr;
+                    const neighborCol = currentCol + dc;
+
+                    if (isWithinBounds(neighborRow, neighborCol, grid) && !visited.has(`${neighborRow},${neighborCol}`)) {
+                        const heuristic = calculateHeuristic(neighborRow, neighborCol, grid);
+                        priorityQueue.push({
+                            position: [neighborRow, neighborCol],
+                            cost: current.cost + 1,
+                            heuristic: heuristic,
+                        });
+                    }
+                }
+            }
+
+            return [-1, -1];
         }
 
-        // Add neighbors to the queue
-        for (const [dr, dc] of directions) {
-            const neighborRow = currentRow + dr;
-            const neighborCol = currentCol + dc;
+        function calculateHeuristic(row, col, grid) {
+            return col * 100 + row;
+        }
 
-            if (
-                isWithinBounds(neighborRow, neighborCol, grid) &&
-                !visited.has(`${neighborRow},${neighborCol}`) &&
-                neighborCol !== excludeColumn
-            ) {
-                const heuristic = calculateHeuristic(neighborRow, neighborCol, grid);
-                priorityQueue.push({
-                    position: [neighborRow, neighborCol],
-                    cost: current.cost + 1,
-                    heuristic: heuristic,
+        function isValidLoadingSlot(grid, row, col) {
+            if (grid[row][col].name !== "UNUSED") return false;
+            if (row === 0) return true;
+            return grid[row - 1][col].name !== "UNUSED";
+        }
+
+        function initializeGridDisplay(grid) {
+            const animationGrid = document.getElementById("animation-grid");
+            animationGrid.innerHTML = "";
+
+            for (let rowIndex = grid.length - 1; rowIndex >= 0; rowIndex--) {
+                grid[rowIndex].forEach((cell, colIndex) => {
+                    const gridCell = document.createElement("div");
+                    gridCell.classList.add("grid-cell");
+                    gridCell.classList.add(cell.name === "UNUSED" ? "unused" : "filled");
+                    gridCell.id = `cell-${grid.length - rowIndex}-${colIndex + 1}`;
+                    gridCell.innerText = cell.name === "UNUSED" ? "" : cell.name;
+                    animationGrid.appendChild(gridCell);
                 });
             }
         }
-    }
 
-    return [-1, -1]; // No valid slot found
-}
+        function updateGridCell(row, col, name, action) {
+            const cell = document.getElementById(`cell-${row}-${col}`);
+            if (!cell) return;
 
-function calculateHeuristic(row, col, grid) {
-    // Prioritize column-first, then row order
-    return col * 100 + row; // Columns have higher priority
-}
+            cell.classList.add("active");
+            cell.innerText = name === "UNUSED" ? "" : name;
+            cell.classList.remove("filled", "unused");
+            cell.classList.add(name === "UNUSED" ? "unused" : "filled");
 
-function isValidLoadingSlot(grid, row, col) {
-    // Slot must be UNUSED and support weight if above row is filled
-    if (grid[row][col].name !== "UNUSED") return false;
-    if (row === 0) return true; // First row is always valid
-    return grid[row - 1][col].name !== "UNUSED"; // Ensure the slot below is filled
-}
+            setTimeout(() => {
+                cell.classList.remove("active");
+            }, 500);
+        }
 
-
-function isWithinBounds(row, col, grid) {
-    return row >= 0 && row < grid.length && col >= 0 && col < grid[0].length;
-}
-
-function initializeGridDisplay(grid) {
-    const animationGrid = document.getElementById("animation-grid");
-    animationGrid.innerHTML = ""; // Clear existing grid
-
-    // Render rows in reverse order for display but keep correct coordinates
-    for (let rowIndex = grid.length - 1; rowIndex >= 0; rowIndex--) {
-        grid[rowIndex].forEach((cell, colIndex) => {
-            const gridCell = document.createElement("div");
-            gridCell.classList.add("grid-cell");
-            gridCell.classList.add(cell.name === "UNUSED" ? "unused" : "filled");
-            gridCell.id = `cell-${grid.length - rowIndex}-${colIndex + 1}`; // Adjust coordinates to start from [1,1]
-            gridCell.innerText = cell.name === "UNUSED" ? "" : cell.name;
-            animationGrid.appendChild(gridCell);
+        window.addEventListener("load", async () => {
+            const response = await fetch(`data/${filename}`);
+            const manifestText = await response.text();
+            grid = parseManifestToGrid(manifestText);
+            initializeGridDisplay(grid);
         });
-    }
-}
-
-
-
-
-function updateGridCell(row, col, name, action) {
-    const cell = document.getElementById(`cell-${row}-${col}`);
-    if (!cell) return;
-
-    // Set animation and state
-    cell.classList.add("active");
-    cell.innerText = name === "UNUSED" ? "" : name;
-    cell.classList.remove("filled", "unused");
-    cell.classList.add(name === "UNUSED" ? "unused" : "filled");
-
-    setTimeout(() => {
-        cell.classList.remove("active");
-    }, 500);
-}
-
-
     </script>
 </body>
 </html>
+
