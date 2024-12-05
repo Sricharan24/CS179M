@@ -23,8 +23,8 @@
             grid-template-rows: repeat(8, 40px);
             grid-template-columns: repeat(12, 40px);
             gap: 5px;
-            margin-left: 20px;
-            margin-top: 0; /* Move the grid to the top */
+            margin-right: 800px;
+            margin-top: 550px; /* Move the grid to the top */
         }
     
         .grid-cell {
@@ -128,9 +128,9 @@
     const resultDiv = document.getElementById("result");
     const formattedManifest = generateManifest(grid);
 
-    resultDiv.innerHTML =
-        `<h3>Updated Manifest:</h3>
-        <pre>${formattedManifest}</pre>`;
+    //resultDiv.innerHTML =
+        // `<h3>Updated Manifest:</h3>
+        // <pre>${formattedManifest}</pre>`;
 
     initializeGridDisplay(grid);
 }
