@@ -53,6 +53,7 @@
 </head>
 <body>
     <script>
+        let filename = "ShipCase";
         class PriorityQueue {
             constructor() {
                 this.elements = [];
@@ -252,10 +253,11 @@
         function triggerManifestDownload() {
             if (balancedGrid) {
                 const manifestContent = generateManifest(balancedGrid);
+                const downloadName = `${filename}OUTBOUND.txt`;
                 const blob = new Blob([manifestContent], { type: "text/plain" });
                 const link = document.createElement("a");
                 link.href = URL.createObjectURL(blob);
-                link.download = "UpdatedManifest.txt";
+                link.download = downloadName;
                 link.click();
             } else {
                 alert("No balanced manifest available. Please run the balancing process first.");
