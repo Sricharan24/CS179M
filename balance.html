@@ -222,32 +222,32 @@
             const result = aStarBalancing(grid);
 
             const movesList = document.getElementById("movesList");
-            movesList.innerHTML = ""; // Clear the move list before displaying new moves
+            movesList.innerHTML = ""; 
 
             if (result) {
-                balancedGrid = result.grid; // Final grid state after balancing
+                balancedGrid = result.grid; 
                 initializeGridDisplay(balancedGrid);
 
                 for (const move of result.moves) {
                     const { from, to } = move;
                     displayMove(from, to);
-                    // Store the container's name (status) and weight in temporary variables
+                    
                     const movedBox = balancedGrid[from[0] - 1][from[1] - 1];
-                    const tempWeight = movedBox.weight; // Store weight
-                    const tempStatus = movedBox.status; // Store name/status
+                    const tempWeight = movedBox.weight; 
+                    const tempStatus = movedBox.status;
 
-                    // Relocate the container
-                    balancedGrid[to[0] - 1][to[1] - 1] = { weight: tempWeight, status: tempStatus }; // Use stored values
-                    balancedGrid[from[0] - 1][from[1] - 1] = { weight: 0, status: "UNUSED" }; // Clear old location
+                    
+                    balancedGrid[to[0] - 1][to[1] - 1] = { weight: tempWeight, status: tempStatus }; 
+                    balancedGrid[from[0] - 1][from[1] - 1] = { weight: 0, status: "UNUSED" }; 
 
-                    // Display the move in the moves list
+                    
                     
 
-                    // Update the grid visually
+                    
                     updateGridCell(from[0], from[1], "UNUSED", "offload");
                     updateGridCell(to[0], to[1], tempStatus, "load");
 
-                    // Wait briefly to animate each move
+                    
                     await new Promise(resolve => setTimeout(resolve, 500));
                 }
 
@@ -281,7 +281,7 @@
         });
     </script>
     <div class="grid-container">
-        <!-- Left Section: Buttons and Moves -->
+       
         <div class="container">
             <h1>Balance</h1>
             <button onclick="balanceManifest()">Run Balancing</button>
@@ -292,7 +292,7 @@
             </div>
         </div>
 
-        <!-- Right Section: Grid -->
+        
         <div id="animation-grid" class="animation-grid"></div>
     </div>
 
