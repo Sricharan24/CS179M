@@ -222,23 +222,32 @@
             const result = aStarBalancing(grid);
 
             const movesList = document.getElementById("movesList");
-            movesList.innerHTML = "";
+            movesList.innerHTML = ""; // Clear the move list before displaying new moves
 
             if (result) {
-                balancedGrid = result.grid;
+                balancedGrid = result.grid; // Final grid state after balancing
                 initializeGridDisplay(balancedGrid);
 
                 for (const move of result.moves) {
                     const { from, to } = move;
                     displayMove(from, to);
-
+                    // Store the container's name (status) and weight in temporary variables
                     const movedBox = balancedGrid[from[0] - 1][from[1] - 1];
-                    balancedGrid[to[0] - 1][to[1] - 1] = movedBox;
-                    balancedGrid[from[0] - 1][from[1] - 1] = { weight: 0, status: "UNUSED" };
+                    const tempWeight = movedBox.weight; // Store weight
+                    const tempStatus = movedBox.status; // Store name/status
 
+                    // Relocate the container
+                    balancedGrid[to[0] - 1][to[1] - 1] = { weight: tempWeight, status: tempStatus }; // Use stored values
+                    balancedGrid[from[0] - 1][from[1] - 1] = { weight: 0, status: "UNUSED" }; // Clear old location
+
+                    // Display the move in the moves list
+                    
+
+                    // Update the grid visually
                     updateGridCell(from[0], from[1], "UNUSED", "offload");
-                    updateGridCell(to[0], to[1], movedBox.status, "load");
+                    updateGridCell(to[0], to[1], tempStatus, "load");
 
+                    // Wait briefly to animate each move
                     await new Promise(resolve => setTimeout(resolve, 500));
                 }
 
@@ -263,6 +272,7 @@
                 alert("No balanced manifest available. Please run the balancing process first.");
             }
         }
+
 
         window.addEventListener("load", async () => {
             const manifestPath = "./data/ShipCase.txt";
