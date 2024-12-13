@@ -58,21 +58,17 @@
             constructor() {
                 this.elements = [];
             }
-
             enqueue(priority, item) {
                 this.elements.push({ priority, item });
                 this.elements.sort((a, b) => a.priority - b.priority);
             }
-
             dequeue() {
                 return this.elements.shift().item;
             }
-
             isEmpty() {
                 return this.elements.length === 0;
             }
         }
-
         let balancedGrid = null;
 
         async function parseManifestFile(filePath) {
@@ -80,9 +76,8 @@
             const text = await response.text();
             const rows = text.split("\n").filter(line => line.trim() !== "");
             const grid = Array(8).fill(null).map(() => Array(12).fill(null));
-
             rows.forEach(row => {
-                const match = row.match(/\[(\d+),(\d+)\],\s?\{(\d+)\},\s?([\w\s]+)/);
+                const match = row.match(/\[(\d+),(\d+)\],\s?\{(\d+)\},\s?([\w\s]+)/); //regex. dont know why load-unload code wasnt working here
                 if (match) {
                     const [_, y, x, weight, status] = match;
                     const rowIdx = parseInt(y, 10) - 1;
@@ -90,7 +85,6 @@
                     grid[rowIdx][colIdx] = { weight: parseInt(weight, 10), status };
                 }
             });
-
             return grid;
         }
 
@@ -111,7 +105,6 @@
         function initializeGridDisplay(grid) {
             const animationGrid = document.getElementById("animation-grid");
             animationGrid.innerHTML = "";
-
             for (let rowIndex = grid.length - 1; rowIndex >= 0; rowIndex--) {
                 grid[rowIndex].forEach((cell, colIndex) => {
                     const gridCell = document.createElement("div");
@@ -127,12 +120,10 @@
         function updateGridCell(row, col, name, action) {
             const cell = document.getElementById(`cell-${row}-${col}`);
             if (!cell) return;
-
             cell.classList.add("active");
             cell.innerText = name === "UNUSED" ? "" : name;
             cell.classList.remove("filled", "unused");
             cell.classList.add(name === "UNUSED" ? "unused" : "filled");
-
             setTimeout(() => {
                 cell.classList.remove("active");
             }, 500);
@@ -166,24 +157,18 @@
         function aStarBalancing(grid) {
             const cols = grid[0].length;
             const leftCols = Math.floor(cols / 2);
-
             let leftWeight = calculateWeight(grid, 0, leftCols);
             let rightWeight = calculateWeight(grid, leftCols, cols);
-
             const startState = { grid, leftWeight, rightWeight, moves: [] };
             const pq = new PriorityQueue();
             pq.enqueue(Math.abs(leftWeight - rightWeight), startState);
-
             const visited = new Set();
-
             while (!pq.isEmpty()) {
                 const currentState = pq.dequeue();
                 const { grid: currentGrid, leftWeight, rightWeight, moves } = currentState;
-
                 if (isBalanced(leftWeight, rightWeight)) {
                     return { grid: currentGrid, moves };
                 }
-
                 const stateKey = JSON.stringify(currentGrid);
                 if (visited.has(stateKey)) continue;
                 visited.add(stateKey);
@@ -197,12 +182,9 @@
                                     const newGrid = currentGrid.map(r => r.map(c => (c ? { ...c } : null)));
                                     newGrid[row][targetCol] = { ...newGrid[row][col] };
                                     newGrid[row][col] = null;
-
                                     const newLeftWeight = calculateWeight(newGrid, 0, leftCols);
                                     const newRightWeight = calculateWeight(newGrid, leftCols, cols);
-
                                     const newMoves = [...moves, { from: [row + 1, col + 1], to: [row + 1, targetCol + 1] }];
-
                                     const priority = Math.abs(newLeftWeight - newRightWeight) + moveCost;
                                     pq.enqueue(priority, { grid: newGrid, leftWeight: newLeftWeight, rightWeight: newRightWeight, moves: newMoves });
                                 }
@@ -218,12 +200,9 @@
         async function balanceManifest() {
             const manifestPath = "./data/ShipCase.txt";
             const grid = await parseManifestFile(manifestPath);
-
             const result = aStarBalancing(grid);
-
             const movesList = document.getElementById("movesList");
             movesList.innerHTML = ""; 
-
             if (result) {
                 balancedGrid = result.grid; 
                 initializeGridDisplay(balancedGrid);
@@ -231,23 +210,13 @@
                 for (const move of result.moves) {
                     const { from, to } = move;
                     displayMove(from, to);
-                    
                     const movedBox = balancedGrid[from[0] - 1][from[1] - 1];
                     const tempWeight = movedBox.weight; 
                     const tempStatus = movedBox.status;
-
-                    
                     balancedGrid[to[0] - 1][to[1] - 1] = { weight: tempWeight, status: tempStatus }; 
-                    balancedGrid[from[0] - 1][from[1] - 1] = { weight: 0, status: "UNUSED" }; 
-
-                    
-                    
-
-                    
+                    balancedGrid[from[0] - 1][from[1] - 1] = { weight: 0, status: "UNUSED" };                    
                     updateGridCell(from[0], from[1], "UNUSED", "offload");
                     updateGridCell(to[0], to[1], tempStatus, "load");
-
-                    
                     await new Promise(resolve => setTimeout(resolve, 500));
                 }
 
@@ -272,8 +241,6 @@
                 alert("No balanced manifest available. Please run the balancing process first.");
             }
         }
-
-
         window.addEventListener("load", async () => {
             const manifestPath = "./data/ShipCase.txt";
             const grid = await parseManifestFile(manifestPath);
@@ -281,7 +248,6 @@
         });
     </script>
     <div class="grid-container">
-       
         <div class="container">
             <h1>Balance</h1>
             <button onclick="balanceManifest()">Run Balancing</button>
@@ -291,8 +257,6 @@
                 <ol id="movesList"></ol>
             </div>
         </div>
-
-        
         <div id="animation-grid" class="animation-grid"></div>
     </div>
 

@@ -57,11 +57,15 @@
             <h1>Load/Unload</h1>
             <div class="input-container">
                 <label for="offload">Container to Offload:</label>
-                <input id="offload" type="text" placeholder="e.g., Cat">
+                <input id="offload" type="text" >
             </div>
             <div class="input-container">
                 <label for="load">Container to Load:</label>
-                <input id="load" type="text" placeholder="e.g., NewContainer">
+                <input id="load" type="text" >
+            </div>
+            <div class="input-container">
+                <label for="weight">Container Weight:</label>
+                <input id="weight" type="number" min="1">
             </div>
             <div class="button-container">
                 <button class="button" onclick="handleTransfers()">Execute</button>
@@ -149,13 +153,10 @@
 
                     const [tempRow, tempCol] = tempSlot;
                     const movedContainer = grid[row][targetCol];
-
                     grid[tempRow][tempCol] = movedContainer;
                     grid[row][targetCol] = { weight: 0, name: "UNUSED" };
-
                     updateGridCell(tempRow + 1, tempCol + 1, movedContainer.name, "load");
                     updateGridCell(row + 1, targetCol + 1, "UNUSED", "offload");
-
                     displayMove([row, targetCol], [tempRow, tempCol], "move");
                     await new Promise((resolve) => setTimeout(resolve, 500));
                 }
@@ -168,19 +169,20 @@
         }
 
         async function handleLoad(grid, containerName) {
+            const weightInput = document.getElementById("weight").value.trim();
+            const weight = parseInt(weightInput, 10);
+            if (isNaN(weight) || weight <= 0) {
+                alert("Please enter a valid weight for the container.");
+                return;
+            }
             const startPosition = [0, 0];
             const availableSlot = aStarFindSlot(grid, startPosition);
-
             if (availableSlot[0] === -1) {
                 alert("No empty slot available for loading.");
                 return;
             }
-
             const [targetRow, targetCol] = availableSlot;
-            const weight = Math.floor(Math.random() * 151) + 50;
-
             grid[targetRow][targetCol] = { weight, name: containerName };
-
             updateGridCell(targetRow + 1, targetCol + 1, containerName, "load");
             displayMove(null, [targetRow, targetCol], "load");
         }
@@ -189,27 +191,22 @@
             document.getElementById("movesList").innerHTML = "";
             const offload = document.getElementById("offload").value.trim();
             const load = document.getElementById("load").value.trim();
-
             if (!grid) {
                 const savedGrid = localStorage.getItem("currentGrid");
                 grid = savedGrid ? JSON.parse(savedGrid) : grid;
             }
-
             if (offload) {
                 await handleOffload(grid, offload);
             }
-
             if (load) {
                 await handleLoad(grid, load);
             }
-
             displayUpdatedManifest(grid);
         }
 
         function triggerManifestDownload() {
             const manifestContent = generateManifest(grid);
             const downloadName = `${filename}OUTBOUND.txt`;
-
             const blob = new Blob([manifestContent], { type: "text/plain" });
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
@@ -236,23 +233,18 @@
             const directions = [
                 [1, 0],  [0, 1],  [-1, 0],  [0, -1]
             ];
-
             const priorityQueue = [{ position: start, cost: 0, heuristic: 0 }];
             const visited = new Set();
-
             while (priorityQueue.length > 0) {
                 priorityQueue.sort((a, b) => (a.cost + a.heuristic) - (b.cost + b.heuristic));
                 const current = priorityQueue.shift();
                 const [currentRow, currentCol] = current.position;
-
                 const currentKey = `${currentRow},${currentCol}`;
                 if (visited.has(currentKey)) continue;
                 visited.add(currentKey);
-
                 if (isValidLoadingSlot(grid, currentRow, currentCol) && currentCol !== excludeColumn) {
                     return [currentRow, currentCol];
                 }
-
                 for (const [dr, dc] of directions) {
                     const neighborRow = currentRow + dr;
                     const neighborCol = currentCol + dc;
@@ -300,12 +292,10 @@
         function updateGridCell(row, col, name, action) {
             const cell = document.getElementById(`cell-${row}-${col}`);
             if (!cell) return;
-
             cell.classList.add("active");
             cell.innerText = name === "UNUSED" ? "" : name;
             cell.classList.remove("filled", "unused");
             cell.classList.add(name === "UNUSED" ? "unused" : "filled");
-
             setTimeout(() => {
                 cell.classList.remove("active");
             }, 500);
