@@ -22,6 +22,7 @@
     </div>
 
     <script>
+
         function downloadLogFile() {
             const logContent = localStorage.getItem("logFileContent") || "";
             const blob = new Blob([logContent], { type: "text/plain" });
@@ -33,5 +34,6 @@
 
         document.getElementById("downloadLogButton").addEventListener("click", downloadLogFile);
     </script>
+
 </body>
 </html>

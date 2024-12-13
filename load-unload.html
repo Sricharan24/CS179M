@@ -83,7 +83,17 @@
 
     <script>
         let grid = null;
-        let filename = "ShipCase";
+        let filename = "SilverQueen";
+
+        function appendToLog(event) {
+            const now = new Date();
+            const timestamp = now.toISOString().slice(0, 19).replace("T", " ");
+            const existingLog = localStorage.getItem("logFileContent") || "";
+            const updatedLog = `${existingLog}${timestamp} - ${event}\n`;
+            localStorage.setItem("logFileContent", updatedLog);
+            console.log(`${timestamp} - ${event}`); 
+        }
+
 
         function parseManifestToGrid(text) {
             const lines = text.trim().split("\n");
@@ -166,6 +176,7 @@
             updateGridCell(targetRow + 1, targetCol + 1, "UNUSED", "offload");
             displayMove([targetRow, targetCol], null, "offload");
             displayUpdatedManifest(grid);
+            appendToLog(`Offloaded container "${containerName}" from position [${position[0] + 1}, ${position[1] + 1}]`);
         }
 
         async function handleLoad(grid, containerName) {
@@ -185,6 +196,7 @@
             grid[targetRow][targetCol] = { weight, name: containerName };
             updateGridCell(targetRow + 1, targetCol + 1, containerName, "load");
             displayMove(null, [targetRow, targetCol], "load");
+            appendToLog(`Loaded container "${containerName}" (weight: ${weight}) into position [${targetRow + 1}, ${targetCol + 1}]`);
         }
 
         async function handleTransfers() {
@@ -302,11 +314,12 @@
         }
 
         window.addEventListener("load", async () => {
-            const response = await fetch(`data/${filename}`);
+            const response = await fetch(`data/ShipCase.txt`);
             const manifestText = await response.text();
             grid = parseManifestToGrid(manifestText);
             initializeGridDisplay(grid);
-        });
+        })
+
     </script>
 </body>
 </html>
